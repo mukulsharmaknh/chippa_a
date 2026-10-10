@@ -69,10 +69,15 @@ jobs:
       - name: Handle Dependencies
         run: |
           set -euo pipefail
-          echo "Preparing device/vendor..."
+          echo "Preparing device/vendor and techpack..."
           rm -rf device vendor
           mv temp_modules/vendor ./vendor
           mv temp_modules/device ./device
+          if [ -d temp_modules/kernel/msm-5.4/techpack ]; then
+            echo "Syncing techpack modules from temp_modules..."
+            mkdir -p kernel/msm-5.4/techpack
+            cp -r temp_modules/kernel/msm-5.4/techpack/* kernel/msm-5.4/techpack/ || true
+          fi
           rm -rf temp_modules
 
       - name: Set Release Info
@@ -138,8 +143,7 @@ jobs:
             -e CONFIG_KSU_SUSFS_ENABLE_LOG \
             -d CONFIG_KSU_SUSFS_SUS_SU \
             -e CONFIG_NOMOUNT \
-            -d CONFIG_MODVERSIONS \
-            -d CONFIG_ASM_MODVERSIONS \
+            -e CONFIG_MODVERSIONS \
             -e CONFIG_MODULE_FORCE_LOAD
 
           make O=out CC=clang LLVM=1 LLVM_IAS=1 olddefconfig
@@ -227,6 +231,7 @@ jobs:
 
           ./magiskboot unpack boot_origin.img
           cp ../kernel/msm-5.4/out/arch/arm64/boot/Image kernel
+          export PATCHVBMETAFLAG=true
           ./magiskboot repack boot_origin.img "../boot-KSU-Next-SUSFS-9RT-16.0.3.500-${{ env.BUILD_DATE }}.img"
           cd ..
           ls -lh "boot-KSU-Next-SUSFS-9RT-16.0.3.500-${{ env.BUILD_DATE }}.img"
