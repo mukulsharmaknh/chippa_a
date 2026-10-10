@@ -4,10 +4,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         google()
         mavenCentral()
-        maven("https://jitpack.io")
     }
 }
 
@@ -19,7 +17,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ReSukiSU"
+rootProject.name = "KernelSU-Next"
 include(":app")
-include(":baselineprofile")
-include(":lint-rules")

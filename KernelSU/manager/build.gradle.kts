@@ -1,41 +1,96 @@
+import com.android.build.api.dsl.ApplicationDefaultConfig
+import com.android.build.api.dsl.CommonExtension
+import com.android.build.gradle.api.AndroidBasePlugin
+import java.io.ByteArrayOutputStream
+
 plugins {
     alias(libs.plugins.agp.app) apply false
-    alias(libs.plugins.agp.test) apply false
-    alias(libs.plugins.androidx.baselineprofile) apply false
+    alias(libs.plugins.agp.lib) apply false
     alias(libs.plugins.kotlin) apply false
     alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.lsplugin.cmaker)
 }
 
-extra["androidMinSdkVersion"] = 26
-extra["androidTargetSdkVersion"] = 37
-extra["androidCompileSdkVersion"] = 37
-extra["androidBuildToolsVersion"] = "36.1.0"
-extra["androidCompileNdkVersion"] = libs.versions.ndk.get()
-extra["androidSourceCompatibility"] = JavaVersion.VERSION_21
-extra["androidTargetCompatibility"] = JavaVersion.VERSION_21
-extra["managerVersionCode"] = 30000 + getGitCommitCount() + 700
-extra["managerVersionName"] = getGitDescribe()
-extra["isPrBuild"] = project.findProperty("IS_PR_BUILD")?.toString()?.toBoolean() ?: false
-extra["defaultManagerPackageName"] = "com.resukisu.resukisu"
-extra["managerPackageName"] = project.findProperty("KSU_PACKAGE_NAME")?.toString() ?: extra["defaultManagerPackageName"]
-extra["defaultManagerAppName"] = if (extra["isPrBuild"] == true) "ReSukiSU PR" else "ReSukiSU"
-extra["managerName"] = project.findProperty("KSU_NAME")?.toString() ?: extra["defaultManagerAppName"]
+cmaker {
+    default {
+        arguments.addAll(
+            arrayOf(
+                "-DANDROID_STL=none",
+            )
+        )
+        abiFilters("arm64-v8a", "armeabi-v7a", "x86_64")
+    }
+    buildTypes {
+        if (it.name == "release") {
+            arguments += "-DDEBUG_SYMBOLS_PATH=${layout.buildDirectory.asFile.get().absolutePath}/symbols"
+        }
+    }
+}
 
-val isSpoofedBuild = project.findProperty("IS_SPOOFED_BUILD")?.toString()?.toBoolean() ?: false
-
+val androidMinSdkVersion = 26
+val androidTargetSdkVersion = 36
+val androidCompileSdkVersion = 36
+val androidCompileNdkVersion = "28.2.13676358"
+val androidSourceCompatibility = JavaVersion.VERSION_21
+val androidTargetCompatibility = JavaVersion.VERSION_21
+val managerVersionCode by extra(getVersionCode())
+val managerVersionName by extra(getVersionName())
 
 fun getGitCommitCount(): Int {
-    return providers.exec {
+    val out = ByteArrayOutputStream()
+    exec {
         commandLine("git", "rev-list", "--count", "HEAD")
-    }.standardOutput.asText.get().trim().toInt()
+        standardOutput = out
+    }
+    return out.toString().trim().toInt()
 }
 
 fun getGitDescribe(): String {
-    val desc = providers.exec {
-        commandLine("git", "describe", "--tags", "--always", "--abbrev=0")
-    }.standardOutput.asText.get().trim()
-    if (isSpoofedBuild) {
-        return "$desc-spoofed"
+    val out = ByteArrayOutputStream()
+    exec {
+        commandLine("git", "describe", "--tags", "--always")
+        standardOutput = out
     }
-    return desc
+    return out.toString().trim()
+}
+
+fun getVersionCode(): Int {
+    val commitCount = getGitCommitCount()
+    val major = 1
+    return major * 10000 + commitCount + 200
+}
+
+fun getVersionName(): String {
+    return getGitDescribe()
+}
+
+subprojects {
+    plugins.withType(AndroidBasePlugin::class.java) {
+        extensions.configure(CommonExtension::class.java) {
+            compileSdk = androidCompileSdkVersion
+            ndkVersion = androidCompileNdkVersion
+
+            defaultConfig {
+                minSdk = androidMinSdkVersion
+                if (this is ApplicationDefaultConfig) {
+                    targetSdk = androidTargetSdkVersion
+                    versionCode = managerVersionCode
+                    versionName = managerVersionName
+                }
+                ndk {
+                    abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+                }
+            }
+
+            lint {
+                abortOnError = true
+                checkReleaseBuilds = false
+            }
+
+            compileOptions {
+                sourceCompatibility = androidSourceCompatibility
+                targetCompatibility = androidTargetCompatibility
+            }
+        }
+    }
 }

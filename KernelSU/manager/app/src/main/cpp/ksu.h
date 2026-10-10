@@ -5,20 +5,19 @@
 #ifndef KERNELSU_KSU_H
 #define KERNELSU_KSU_H
 
-#include "prelude.h"
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/prctl.h>
-#include <sys/syscall.h>
+#include <linux/capability.h>
 
-#include "uapi/ksu.h"
+bool become_manager(const char *);
 
-uint32_t get_kernel_uapi_version();
+int get_version();
 
-uint32_t get_manager_uapi_version();
+uid_t get_manager_uid();
 
-uint32_t get_version();
+const char* get_hook_mode();
+
+const char* get_version_tag();
+
+bool get_allow_list(int *uids, int *size);
 
 bool uid_should_umount(int uid);
 
@@ -26,67 +25,70 @@ bool is_safe_mode();
 
 bool is_lkm_mode();
 
-bool is_manager();
+#define KSU_APP_PROFILE_VER 2
+#define KSU_MAX_PACKAGE_NAME 256
+// NGROUPS_MAX for Linux is 65535 generally, but we only supports 32 groups.
+#define KSU_MAX_GROUPS 32
+#define KSU_SELINUX_DOMAIN 64
 
-bool is_late_load_mode();
+using p_key_t = char[KSU_MAX_PACKAGE_NAME];
 
-bool is_lkm_bundled();
+struct root_profile {
+    int32_t uid;
+    int32_t gid;
 
-bool is_pr_build();
+    int32_t groups_count;
+    int32_t groups[KSU_MAX_GROUPS];
 
-void get_full_version(char* buff);
+    // kernel_cap_t is u32[2] for capabilities v3
+    struct {
+        uint64_t effective;
+        uint64_t permitted;
+        uint64_t inheritable;
+    } capabilities;
 
-bool set_app_profile(const struct app_profile *profile);
+    char selinux_domain[KSU_SELINUX_DOMAIN];
 
-int get_app_profile(struct app_profile* profile);
-
-void get_hook_type(char *buff);
-
-int get_kernel_patch_implement();
-
-bool set_dynamic_manager(unsigned int size, const char* hash);
-
-bool get_dynamic_manager(struct ksu_dynamic_manager_cmd* config);
-
-bool clear_dynamic_manager();
-
-// Su compat
-bool set_su_enabled(bool enabled);
-bool is_su_enabled();
-
-// sulog
-bool is_sulog_enabled();
-
-bool set_sulog_enabled(bool enabled);
-
-// Kernel umount
-bool set_kernel_umount_enabled(bool enabled);
-bool is_kernel_umount_enabled();
-
-// SELinux hide
-int set_selinux_hide_enabled(bool enabled);
-
-bool is_selinux_hide_enabled();
-
-bool get_managers_list(struct ksu_get_managers_cmd **out_cmd);
-bool get_allow_list(struct ksu_new_get_allow_list_cmd *);
-
-// Legacy Compatible
-struct ksu_version_info legacy_get_info();
-
-struct ksu_version_info {
-    int32_t version;
-    int32_t flags;
+    int32_t namespaces;
 };
 
-bool legacy_get_allow_list(int *uids, int *size);
-bool legacy_is_safe_mode();
-bool legacy_uid_should_umount(int uid);
-bool legacy_set_app_profile(const struct app_profile* profile);
-bool legacy_get_app_profile(char* key, struct app_profile* profile);
-bool legacy_set_su_enabled(bool enabled);
-bool legacy_is_su_enabled();
-bool legacy_get_hook_type(char* hook_type, size_t size);
-void legacy_get_full_version(char* buff);
+struct non_root_profile {
+    bool umount_modules;
+};
+
+struct app_profile {
+    // It may be utilized for backward compatibility, although we have never explicitly made any promises regarding this.
+    uint32_t version;
+
+    // this is usually the package of the app, but can be other value for special apps
+    char key[KSU_MAX_PACKAGE_NAME];
+    int32_t current_uid;
+    bool allow_su;
+
+    union {
+        struct {
+            bool use_default;
+            char template_name[KSU_MAX_PACKAGE_NAME];
+
+            struct root_profile profile;
+        } rp_config;
+
+        struct {
+            bool use_default;
+
+            struct non_root_profile profile;
+        } nrp_config;
+    };
+};
+
+bool set_app_profile(const app_profile *profile);
+
+bool get_app_profile(p_key_t key, app_profile *profile);
+
+bool set_su_enabled(bool enabled);
+
+bool is_su_enabled();
+
+bool is_zygisk_enabled();
 
 #endif //KERNELSU_KSU_H
