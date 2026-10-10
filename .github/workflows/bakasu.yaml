@@ -97,12 +97,13 @@ jobs:
           clang --version
 
           echo "=========================================="
-          echo "Verifying pre-patched source..."
+          echo "Syncing latest upstream BakaSU dynamically..."
           echo "=========================================="
-          if [ ! -d KernelSU ]; then
-            echo "ERROR: KernelSU directory missing"
-            exit 1
-          fi
+          rm -rf KernelSU
+          git clone --depth 1 https://github.com/Baka-SU/BakaSU.git KernelSU
+          git -C KernelSU fetch --unshallow || true
+          python3 scripts/patch_bakasu.py
+
           if [ ! -d NoMount ]; then
             echo "ERROR: NoMount directory missing"
             exit 1
