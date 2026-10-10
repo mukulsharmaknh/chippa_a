@@ -1271,7 +1271,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	 * level only to that loader.  Applied after the SUSFS spoof so the
 	 * loader always sees a bootable version string.
 	 */
-	if (!strcmp(current->comm, "netbpfload")) {
+	if (!strcmp(current->comm, "netbpfload") || !strcmp(current->comm, "bpfloader")) {
 		strscpy(tmp.release, "5.10.199-dsu-bpf-compat",
 			sizeof(tmp.release));
 	}
