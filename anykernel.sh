@@ -74,11 +74,10 @@ fi
 ui_print "Starting kernel installation..."
 ui_print "Developer: Mukul⚡"
 ui_print "Features:"
-ui_print "-> SukiSU Ultra "
-ui_print "-> SUSFS ඞ "
-ui_print "-> VFS HOOK"
-ui_print "-> Magic Mount Support (KPM)"
-ui_print "-> BBR Support"
+ui_print "-> BakaSU (v35222)"
+ui_print "-> SUSFS v2.3.0"
+ui_print "-> NoMount"
+ui_print "-> Manual Hook"
 if [ -L "/dev/block/bootdevice/by-name/init_boot_a" ] || [ -L "/dev/block/by-name/init_boot_a" ]; then
     split_boot
     flash_boot

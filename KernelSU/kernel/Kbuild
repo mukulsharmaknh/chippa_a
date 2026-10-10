@@ -51,7 +51,7 @@ ccflags-y += -I$(src) -I$(src)/include
 
 obj-$(CONFIG_KSU) += kernelsu.o
 
-REPO_NAME := ReSukiSU
+REPO_NAME := BakaSU
 
 KDIR := $(KDIR)
 
@@ -61,29 +61,20 @@ KSU_SRC := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 LOCAL_GIT_EXISTS := $(shell test -e $(KSU_SRC)/../.git && echo 1 || echo 0)
 
-ifeq ($(LOCAL_GIT_EXISTS),0)
-$(info -- Can't find $(REPO_NAME) git submodule, using pinned version info.)
-endif
-
-ifdef KBUILD_EXTMOD
-include $(KSU_SRC)/tools/ddk_compatible.mk
-endif
-
 ifeq ($(LOCAL_GIT_EXISTS),1)
 $(shell cd $(KSU_SRC); [ -f ../.git/shallow ] && $(GIT_BIN) fetch --unshallow)
 KSU_LOCAL_VERSION := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-list --count HEAD)
-KSU_TAG_NAME    := $(shell cd $(KSU_SRC); $(GIT_BIN) describe --abbrev=0 --tags 2>/dev/null || echo "v4.1.0")
-KSU_COMMIT_SHA  := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD 2>/dev/null || echo "unknown")
+KSU_TAG_NAME    := $(shell cd $(KSU_SRC); $(GIT_BIN) describe --abbrev=0 --tags 2>/dev/null || echo "v4.2.0-rc3")
+KSU_COMMIT_SHA  := $(shell cd $(KSU_SRC); $(GIT_BIN) rev-parse --short=8 HEAD 2>/dev/null || echo "5b76b884")
 ifneq ($(shell cd $(KSU_SRC); $(GIT_BIN) diff-index --quiet HEAD; echo $$?),0)
 KSU_COMMIT_SHA  := $(KSU_COMMIT_SHA)-dirty
 endif
-KSU_BRANCH_NAME := $(shell cd $(KSU_SRC); $(GIT_BIN) branch --show-current 2>/dev/null || echo "unknown")
+KSU_BRANCH_NAME := $(shell cd $(KSU_SRC); $(GIT_BIN) branch --show-current 2>/dev/null || echo "main")
 else
-# Pre-patched in-tree source (no nested .git in CI): pin v4.2.0-rc3 values
-# so KSU_VERSION stays 30000 + 4472 + 700 = 35172 (manager gate).
-KSU_LOCAL_VERSION := 4472
+# In-tree pre-patched source (no nested .git): pin latest BakaSU values (version code 35222)
+KSU_LOCAL_VERSION := 4522
 KSU_TAG_NAME    := v4.2.0-rc3
-KSU_COMMIT_SHA  := pinned
+KSU_COMMIT_SHA  := 5b76b884
 KSU_BRANCH_NAME := main
 endif
 KSU_VERSION := $(shell expr 30000 + $(KSU_LOCAL_VERSION) + 700)
@@ -103,7 +94,7 @@ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
 ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
 
 ifdef CONFIG_KSU_MULTI_MANAGER_SUPPORT
-$(info -- Supported Unofficial Manager: MKSU, RKSU, KOWSU, SukiSU-Ultra, ReSukiSU )
+$(info -- Supported Managers: KernelSU Official, KOWSU, BakaSU )
 endif
 
 KERNEL_VERSION := $(VERSION).$(PATCHLEVEL)
@@ -180,7 +171,7 @@ ifdef CONFIG_KSU_TRACEPOINT_HOOK
       $(info -- Current Kernel Type: $(KERNEL_TYPE))
       $(info -- If you really want to continue, go to Kbuild and comment out this warning.)
       $(info -- Usually, this error occurs because you forgot to enable some kernel configurations.)
-      $(info -- Read: https://resukisu.org/guide/manual-integrate.html)
+      $(info -- Read: https://bakasu.org/guide/manual-integrate.html)
       $(error TP hooks are incompatible with Non-GKI/GKI 1.0 kernels.)
     endif
   endif
@@ -207,9 +198,20 @@ else
   endif
 endif
 
+ifdef CONFIG_KSU_SUSFS
+  ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
+    $(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
+    $(info -- SUSFS_VERSION: $(SUSFS_VERSION) (Enabled))
+  endif
+endif
+
+ifdef CONFIG_NOMOUNT
+  $(info -- NoMount: Enabled)
+endif
+
 ifndef CONFIG_KSU_TRACEPOINT_HOOK
   # For old kernel, pkg observer maybe let system freeze
-  # https://github.com/ReSukiSU/ReSukiSU/issues/82#issuecomment-4015396974
+  # https://github.com/Baka-SU/BakaSU/issues/82#issuecomment-4015396974
   #
   # 6.7- we use lsm_hooks to call ksu_handle_rename
   # 6.8+ we use pkg_observer to track_throne
