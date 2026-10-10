@@ -169,6 +169,14 @@ jobs:
           echo "=========================================="
           echo "COMPILING KERNEL..."
           echo "=========================================="
+          # Method 1: Ensure clean git state and remove any localversion/scmversion overrides
+          # so Kbuild generates the natural stock version (e.g. 5.4.295-qgki-g<sha>) without +dirty
+          rm -f localversion .scmversion out/localversion out/.scmversion
+          git config user.name "Mukul"
+          git config user.email "mukul@github.com"
+          git add -A || true
+          git commit -m "ci: prepare clean tree for build" --no-gpg-sign || true
+
           make O=out CC=clang LLVM=1 LLVM_IAS=1 -j"$(nproc)" \
             KBUILD_BUILD_USER="Mukul" \
             KBUILD_BUILD_HOST="GitHub-Actions"
