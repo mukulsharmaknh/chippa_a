@@ -97,12 +97,12 @@ jobs:
           clang --version
 
           echo "=========================================="
-          echo "Verifying pre-patched source..."
+          echo "Syncing latest upstream KernelSU-Next (pershoot next-susfs)..."
           echo "=========================================="
-          if [ ! -d KernelSU ]; then
-            echo "ERROR: KernelSU directory missing"
-            exit 1
-          fi
+          rm -rf KernelSU
+          git clone --depth 1 -b next-susfs https://github.com/pershoot/KernelSU-Next.git KernelSU
+          git -C KernelSU fetch --unshallow || true
+
           if [ ! -d NoMount ]; then
             echo "ERROR: NoMount directory missing"
             exit 1
@@ -119,8 +119,7 @@ jobs:
           echo "=========================================="
           ./scripts/config --file out/.config \
             -e CONFIG_KSU \
-            -d CONFIG_KSU_TRACEPOINT_HOOK \
-            -e CONFIG_KSU_MANUAL_HOOK \
+            -d CONFIG_KSU_KPROBES_HOOK \
             -e CONFIG_KSU_SUSFS \
             -e CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
             -e CONFIG_KSU_SUSFS_SUS_MOUNT \
@@ -137,9 +136,6 @@ jobs:
             -e CONFIG_KSU_SUSFS_OPEN_REDIRECT \
             -e CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
             -e CONFIG_KSU_SUSFS_ENABLE_LOG \
-            -e CONFIG_KSU_MANUAL_HOOK_AUTO_SETUID_HOOK \
-            -d CONFIG_KSU_MANUAL_HOOK_AUTO_INITRC_HOOK \
-            -e CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK \
             -d CONFIG_KSU_SUSFS_SUS_SU \
             -e CONFIG_NOMOUNT \
             -d CONFIG_MODVERSIONS \
@@ -151,14 +147,14 @@ jobs:
           echo "=========================================="
           echo "VERIFYING CONFIGURATION"
           echo "=========================================="
-          grep -E '^(CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_NOMOUNT=)' out/.config
+          grep -E '^(CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_NOMOUNT=)' out/.config
 
-          if ! grep -q '^CONFIG_KSU_SUSFS=y' out/.config; then
-            echo "ERROR: CONFIG_KSU_SUSFS is not enabled!"
+          if ! grep -q '^CONFIG_KSU=y' out/.config; then
+            echo "ERROR: CONFIG_KSU is not enabled!"
             exit 1
           fi
-          if ! grep -q '^CONFIG_KSU_MANUAL_HOOK=y' out/.config; then
-            echo "ERROR: CONFIG_KSU_MANUAL_HOOK is not enabled!"
+          if ! grep -q '^CONFIG_KSU_SUSFS=y' out/.config; then
+            echo "ERROR: CONFIG_KSU_SUSFS is not enabled!"
             exit 1
           fi
           if ! grep -q '^CONFIG_NOMOUNT=y' out/.config; then
