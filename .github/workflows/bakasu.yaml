@@ -244,6 +244,28 @@ jobs:
 
           ./magiskboot unpack boot_origin.img
           cp ../kernel/msm-5.4/out/arch/arm64/boot/Image kernel
+
+          if [ -f ramdisk.cpio ]; then
+            echo "=========================================="
+            echo "Updating early boot modules in ramdisk.cpio..."
+            echo "=========================================="
+            mkdir -p rd_work
+            cd rd_work
+            cpio -idm < ../ramdisk.cpio
+            for mod in $(find vendor/lib/modules/ -type f -name "*.ko" 2>/dev/null); do
+              mod_name=$(basename "$mod")
+              found=$(find ../../kernel/msm-5.4/out -type f -name "$mod_name" 2>/dev/null | head -n 1)
+              if [ -n "$found" ] && [ -f "$found" ]; then
+                echo "Syncing ramdisk module $mod_name from $found"
+                cp -f "$found" "$mod"
+              fi
+            done
+            find . | cpio -o -H newc > ../ramdisk.cpio
+            cd ..
+            rm -rf rd_work
+            echo "ramdisk.cpio updated successfully."
+          fi
+
           export PATCHVBMETAFLAG=true
           ./magiskboot repack boot_origin.img "../boot-BakaSU-SUSFS-9RT-16.0.3.500-${{ env.BUILD_DATE }}.img"
           cd ..
